@@ -1,6 +1,6 @@
 # This file is a part of Classe Viva Python API
 #
-# Copyright (c) 2017 Marco Aceti
+# Copyright (c) 2017 The Classe Viva Python API Authors (see AUTHORS)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,7 @@ from urllib.parse import quote_plus
 import requests
 
 from .utils import Utils
-from .errors import NotLoggedInError
+from .errors import AuthenticationFailedError, NotLoggedInError
 
 
 class Session:
@@ -74,7 +74,9 @@ class Session:
             })
         )
         result = r.json()
-        print(result)
+
+        if 'authentication failed' in result.get('error', ''):
+            raise AuthenticationFailedError()
 
         self.logged_in = True
         self.first_name = result['firstName']
@@ -108,7 +110,6 @@ class Session:
         for x in path:
             url += '/' + quote_plus(x)
 
-        print(url)
         r = requests.get(
             url=url,
             headers={

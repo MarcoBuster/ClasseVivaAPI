@@ -1,3 +1,5 @@
+# This file is a part of Classe Viva Python API
+#
 # Copyright (c) 2017 The Classe Viva Python API Authors (see AUTHORS)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -17,6 +19,14 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
+
+
+class AuthenticationFailedError(Exception):
+    """
+    Authentication failed error: bad username or password
+    """
+    def __init__(self):
+        self.message = "Bad username or password"
 
 
 class NotLoggedInError(Exception):

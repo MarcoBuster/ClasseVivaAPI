@@ -1,3 +1,5 @@
+# This file is a part of Classe Viva Python API
+#
 # Copyright (c) 2017 The Classe Viva Python API Authors (see AUTHORS)
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
