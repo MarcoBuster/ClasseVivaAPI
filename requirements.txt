@@ -1,1 +1,4 @@
-requests
+Flask_Cors==3.0.3
+Flask==0.12.2
+Flask_JWT_Simple==0.0.3
+requests==2.18.4
