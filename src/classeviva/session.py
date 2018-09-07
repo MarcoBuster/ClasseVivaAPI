@@ -26,6 +26,7 @@ import re
 from datetime import datetime
 from json.decoder import JSONDecodeError
 from urllib.parse import quote_plus
+from flask import jsonify
 
 import requests
 
@@ -154,12 +155,14 @@ class Session:
         :rtype: dict
         """
         if begin == end:
-            return self._request('absences', 'details')
+            absences = self._request('absences', 'details')
+            return jsonify(absences)
 
-        return self._request('absences',
+        absences = self._request('absences',
                              'details',
                              self.utils.convert_dt(begin),
                              self.utils.convert_dt(end))
+        return jsonify(absences)
 
     def agenda(self, begin, end, event_filter='all'):
         """
@@ -173,10 +176,11 @@ class Session:
         :return: student's absences
         :rtype: dict
         """
-        return self._request('agenda',
+        agenda = self._request('agenda',
                              ('all' if event_filter == 'all' else ('AGHW' if event_filter == 'homeworks' else 'AGNT')),
                              self.utils.convert_dt(begin),
                              self.utils.convert_dt(end))
+        return jsonify(agenda)
 
     def didactics(self):
         """
@@ -184,7 +188,8 @@ class Session:
         :return: student's educational files list
         :rtype: dict
         """
-        return self._request('didactics')
+        didactics = self._request('didactics')
+        return jsonify(didactics)
 
     def _download_file(self, content_id):
         # TODO: File download
@@ -200,7 +205,8 @@ class Session:
         :return: student's schoolbooks
         :rtype: dict
         """
-        return self._request('schoolbooks')
+        schoolbooks = self._request('schoolbooks')
+        return jsonify(schoolbooks)
 
     def calendar(self):
         """
@@ -208,7 +214,8 @@ class Session:
         :return: school calendar
         :rtype: dict
         """
-        return self._request('calendar', 'all')
+        calendar = self._request('calendar', 'all')
+        return jsonify(calendar)
 
     def cards(self):
         """
@@ -216,7 +223,8 @@ class Session:
         :return: student's cards
         :rtype: dict
         """
-        return self._request('cards')
+        cards = self._request('cards')
+        return jsonify(cards)
 
     def grades(self, subject=None):
         """
@@ -227,9 +235,11 @@ class Session:
         :rtype: dict
         """
         if not subject:
-            return self._request('grades')
+            grades = self._request('grades')
+            return jsonify(grades)
 
-        return self._request('grades', 'subject', subject)
+        grades = self._request('grades', 'subject', subject)
+        return jsonify(grades)
 
     def lessons(self, day='today', begin=None, end=None):
         """
@@ -244,12 +254,14 @@ class Session:
         :rtype: dict
         """
         if begin and end:
-            return self._request('lessons',
+            lessons = self._request('lessons',
                                  self.utils.convert_dt(begin),
                                  self.utils.convert_dt(end))
+            return jsonify(lessons)
 
-        return self._request('lessons',
+        lessons = self._request('lessons',
                              self.utils.convert_dt(day) if day != 'today' else 'today')
+        return jsonify(lessons)
 
     def notes(self):
         """
@@ -257,7 +269,8 @@ class Session:
         :return: student's notes
         :rtype: dict
         """
-        return self._request('notes', 'all')
+        notes = self._request('notes', 'all')
+        return jsonify(notes)
 
     def periods(self):
         """
@@ -265,7 +278,8 @@ class Session:
         :return: student's periods
         :rtype: dict
         """
-        return self._request('periods')
+        periods = self._request('periods')
+        return jsonify(periods)
 
     def subjects(self):
         """
@@ -273,4 +287,5 @@ class Session:
         :return: student's subjects and teachers
         :rtype: dict
         """
-        return self._request('subjects')
+        subjects = self._request('subjects')
+        return jsonify(subjects)
