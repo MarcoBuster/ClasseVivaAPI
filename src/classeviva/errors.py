@@ -35,3 +35,10 @@ class NotLoggedInError(Exception):
     """
     def __init__(self):
         self.message = "You must logged in to use this method."
+
+class NoAttachmentError(Exception):
+    """
+    No attachments error: notice has no attachments
+    """
+    def __init__(self):
+        self.message = "Notice has no attachments."
