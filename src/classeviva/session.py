@@ -30,6 +30,7 @@ from urllib.parse import quote_plus
 
 from .errors import AuthenticationFailedError, NotLoggedInError, NoAttachmentError
 
+
 class Session:
     """
     Main session object
