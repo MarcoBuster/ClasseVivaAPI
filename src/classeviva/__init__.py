@@ -22,4 +22,5 @@
 
 
 from .session import Session
-from .errors import AuthenticationFailedError, NotLoggedInError
+from .errors  import AuthenticationFailedError, NotLoggedInError
+from .tools   import download_didactics
