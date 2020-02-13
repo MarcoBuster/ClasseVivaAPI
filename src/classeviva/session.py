@@ -21,6 +21,7 @@
 # SOFTWARE.
 
 import json
+import os
 import re
 import requests
 
@@ -33,19 +34,19 @@ from .errors import AuthenticationFailedError, NotLoggedInError, NoAttachmentErr
 
 class Session:
     """
-    Main session object
+    Spaggiari Session
     """
 
     base_url = "https://web.spaggiari.eu/rest/v1"
 
-    def __init__(self):
+    def __init__(self, username: str=None, password: str=None):
         self.logged_in  = False
         self.first_name = None
         self.last_name  = None
         self.id         = None
 
-        self.username = None
-        self.password = None
+        self.username = username
+        self.password = password
         self.token    = None
 
         self.session = requests.Session()
@@ -54,7 +55,7 @@ class Session:
         self.session.headers["Z-Dev-Apikey"] = "+zorro+"
         self.session.headers["Content-Type"] = "application/json"
 
-    def _convert_dt(dt=datetime.now()):
+    def _convert_dt(self, dt):
         """
         Utility function to corretly format date
         """
@@ -103,31 +104,34 @@ class Session:
         self.last_name  = None
         self.token      = None
 
-    def _request(self, *path):
-        r = self._raw_request(*path).json()
+    def _request(self, *path, **kargs):
+        r = self._raw_request(*path, **kargs).json()
 
         if 'auth token expired' in r.get('error', ''):
             self.login()
-            return _request(*path)
+            return _request(*path, **kargs)
 
         return r
 
-    def _raw_request(self, *path):
+    def _raw_request(self, *path, **kargs):
         if not self.logged_in:
             raise NotLoggedInError()
 
         url = self.base_url + '/' + 'students' + '/' + self.id
-        for x in path:
-            url += '/' + quote_plus(str(x))
+        for i in path:
+            url += '/' + quote_plus(str(i)) if i else ''
 
-        return self.session.get(
+        method_to_func = {
+            'GET' : self.session.get,
+            'POST': self.session.post }
+
+        return method_to_func[kargs.get('method', "GET")](
             url=url,
             headers={
                 "Z-Auth-Token": self.token,
-            },
-        )
+            })
 
-    def absences(self, begin=_convert_dt(datetime.now()), end=_convert_dt(datetime.now())):
+    def absences(self, begin=None, end=None):
         """
         Get the student's absences
         :param begin: datetime object of start date (optional)
@@ -137,13 +141,11 @@ class Session:
         :return: student's absences
         :rtype: dict
         """
-        if begin == end:
-            return self._request('absences', 'details')
-
-        return self._request('absences',
-                             'details',
-                             self._convert_dt(begin),
-                             self._convert_dt(end))
+        return self._request(
+            'absences',
+            'details',
+            self._convert_dt(begin) if begin else None,
+            self._convert_dt(end)   if end   else None)
 
     def agenda(self, begin, end, event_filter='all'):
         """
@@ -157,10 +159,16 @@ class Session:
         :return: student's absences
         :rtype: dict
         """
-        return self._request('agenda',
-                             ('all' if event_filter == 'all' else ('AGHW' if event_filter == 'homeworks' else 'AGNT')),
-                             self._convert_dt(begin),
-                             self._convert_dt(end))
+        repr = {
+            'all'     : 'all',
+            'homework': 'AGHW',
+            'other'   : 'AGNT' }
+
+        return self._request(
+            'agenda',
+            repr[event_filter],
+            self._convert_dt(begin),
+            self._convert_dt(end))
 
     def didactics(self):
         """
@@ -170,7 +178,38 @@ class Session:
         """
         return self._request('didactics')
 
-    def get_attachment(self, notice):
+    def download_didactics_item(self, item):
+        if item['objectType'] == 'file':
+            return self._raw_request('didactics', 'item', item['contentId']).content
+        elif item['objectType'] == 'link':
+            return self._request('didactics', 'item', item['contentId'])['item']['link']
+
+    def documents(self):
+        """
+        Get the student's documents
+        :return student's documents
+        :rtype: dict
+        """
+        return self._request('documents', method = 'POST')
+
+    def download_document(self, document):
+        """
+        Download document
+        :return: document
+        :rtype: bytes
+        """
+        if self._request('documents', 'check', document['hash'])['document']['available']:
+            return self._raw_request('documents', 'read', document['hash']).content
+
+    def noticeboard(self):
+        """
+        Get the student's noticeboard
+        :return: student's noticeboard
+        :rtype: dict
+        """
+        return self._request('noticeboard')
+
+    def download_notice(self, notice):
         """
         Download notice's attachment
         :return: attachment
@@ -180,15 +219,12 @@ class Session:
             raise NoAttachmentError()
 
         self._request('noticeboard', 'read', notice['evtCode'], notice['pubId'], '101')
-        return self._raw_request('noticeboard', 'attach', notice['evtCode'], notice['pubId'], '101').content
-
-    def noticeboard(self):
-        """
-        Get the student's noticeboard
-        :return: student's noticeboard
-        :rtype: dict
-        """
-        return self._request('noticeboard')
+        return self._raw_request(
+            'noticeboard',
+            'attach',
+            notice['evtCode'],
+            notice['pubId'],
+            '101').content
 
     def schoolbooks(self):
         """
@@ -227,7 +263,7 @@ class Session:
 
         return self._request('grades', 'subject', subject)
 
-    def lessons(self, day='today', begin=None, end=None):
+    def lessons(self, today=False, begin=None, end=None):
         """
         Get the student's lessons
         :param day: query lessons for a specific day (optional, default "today")
@@ -239,13 +275,13 @@ class Session:
         :return: student's lessons
         :rtype: dict
         """
-        if begin and end:
-            return self._request('lessons',
-                                 self.utils.convert_dt(begin),
-                                 self.utils.convert_dt(end))
+        if today:
+            return self._request('lessons', 'today')
 
-        return self._request('lessons',
-                             self.utils.convert_dt(day) if day != 'today' else 'today')
+        return self._request(
+            'lessons',
+            self.utils.convert_dt(begin),
+            self.utils.convert_dt(end))
 
     def notes(self):
         """
