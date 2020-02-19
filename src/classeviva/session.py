@@ -39,7 +39,7 @@ class Session:
 
     base_url = "https://web.spaggiari.eu/rest/v1"
 
-    def __init__(self, username: str=None, password: str=None):
+    def __init__(self, username: str = None, password: str = None):
         self.logged_in  = False
         self.first_name = None
         self.last_name  = None
@@ -61,7 +61,7 @@ class Session:
         """
         return dt.strftime("%Y%m%d")
 
-    def login(self, username: str=None, password: str=None):
+    def login(self, username: str = None, password: str = None):
         """
         Login to Classe Viva API
         :param username: Classe Viva username or email
@@ -75,7 +75,7 @@ class Session:
         r = self.session.post(
             url=self.base_url + "/auth/login/",
             json={
-                "uid":  username if username else self.username,
+                "uid" : username if username else self.username,
                 "pass": password if username else self.password,
             }
         ).json()
@@ -123,7 +123,8 @@ class Session:
 
         method_to_func = {
             'GET' : self.session.get,
-            'POST': self.session.post }
+            'POST': self.session.post
+        }
 
         return method_to_func[kargs.get('method', "GET")](
             url=url,
@@ -162,7 +163,8 @@ class Session:
         repr = {
             'all'     : 'all',
             'homework': 'AGHW',
-            'other'   : 'AGNT' }
+            'other'   : 'AGNT'
+        }
 
         return self._request(
             'agenda',
@@ -190,7 +192,7 @@ class Session:
         :return student's documents
         :rtype: dict
         """
-        return self._request('documents', method = 'POST')
+        return self._request('documents', method='POST')
 
     def download_document(self, document):
         """

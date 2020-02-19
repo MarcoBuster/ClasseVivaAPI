@@ -22,7 +22,8 @@
 
 import os
 
-def download_didactics(session, root :str="didactics", flatten: bool=False):
+
+def download_didactics(session, root: str = "didactics", flatten: bool = False):
     """
     Download all didactics files in the following hierarchy: teacher/folder/file
     :param root: folder where to save the files

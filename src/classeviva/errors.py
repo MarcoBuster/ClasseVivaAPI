@@ -37,7 +37,7 @@ class NotLoggedInError(Exception):
         self.message = "You must logged in to use this method."
 
 
-class NoAttachmentError(Exception):
+class NoAttachmentsError(Exception):
     """
     No attachments error: notice has no attachments
     """

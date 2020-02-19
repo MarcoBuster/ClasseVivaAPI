@@ -13,4 +13,4 @@ before_install:
 script:
     # Run pycodestyle on all .py files in all subfolders.
     # Ignore minor annoying errors.
-    - find . -name \*.py -exec pycodestyle --ignore=E202,E203,E221,E221,E231,E241,E251,E272,E402,E501 {} +
+    - find . -name \*.py -exec pycodestyle --ignore=E203,E221,E272,E501 {} +
