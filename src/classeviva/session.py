@@ -20,37 +20,48 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 import json
+import os
 import re
-from datetime import datetime
+import requests
+
+from datetime     import datetime
 from json.decoder import JSONDecodeError
 from urllib.parse import quote_plus
 
-import requests
-
-from .utils import Utils
-from .errors import AuthenticationFailedError, NotLoggedInError
+from .errors import AuthenticationFailedError, NotLoggedInError, NoAttachmentError
 
 
 class Session:
     """
-    Main session object
+    Spaggiari Session
     """
-    rest_api_url = "https://web.spaggiari.eu/rest/v1"
-    utils = Utils()
 
-    def __init__(self):
-        self.logged_in = False
+    base_url = "https://web.spaggiari.eu/rest/v1"
+
+    def __init__(self, username: str = None, password: str = None):
+        self.logged_in  = False
         self.first_name = None
-        self.last_name = None
-        self.id = None
+        self.last_name  = None
+        self.id         = None
 
-        self.username = None
-        self.password = None
-        self.token = None
+        self.username = username
+        self.password = password
+        self.token    = None
 
-    def login(self, username: str=None, password: str=None):
+        self.session = requests.Session()
+
+        self.session.headers["User-Agent"] = "zorro/1.0"
+        self.session.headers["Z-Dev-Apikey"] = "+zorro+"
+        self.session.headers["Content-Type"] = "application/json"
+
+    def _convert_dt(self, dt):
+        """
+        Utility function to corretly format date
+        """
+        return dt.strftime("%Y%m%d")
+
+    def login(self, username: str = None, password: str = None):
         """
         Login to Classe Viva API
         :param username: Classe Viva username or email
@@ -61,89 +72,67 @@ class Session:
         :rtype: dict
         """
 
-        r = requests.post(
-            url=self.rest_api_url + "/auth/login/",
-            headers={
-                "User-Agent": "zorro/1.0",
-                "Z-Dev-Apikey": "+zorro+",
-                "Content-Type": "application/json",
-            },
-            data=json.dumps({
-                "uid": username if username else self.username,
+        r = self.session.post(
+            url=self.base_url + "/auth/login/",
+            json={
+                "uid" : username if username else self.username,
                 "pass": password if username else self.password,
-            })
-        )
-        result = r.json()
+            }
+        ).json()
 
-        if 'authentication failed' in result.get('error', ''):
+        if 'authentication failed' in r.get('error', ''):
             raise AuthenticationFailedError()
 
-        self.logged_in = True
-        self.first_name = result['firstName']
-        self.last_name = result['lastName']
-        self.token = result['token']
-        self.id = re.sub(r"\D", "", result['ident'])
+        self.logged_in  = True
+        self.first_name = r['firstName']
+        self.last_name  = r['lastName']
+        self.token      = r['token']
+        self.id         = re.sub(r"\D", "", r['ident'])
 
         return {
-            "id": self.id,
+            "id"        : self.id,
             "first_name": self.first_name,
-            "last_name": self.last_name,
+            "last_name" : self.last_name,
         }
 
     def logout(self):
         """
         Logout from Classe Viva API
-        :return: Always True
-        :rtype: bool
         """
-        self.logged_in = False
+        self.logged_in  = False
         self.first_name = None
-        self.last_name = None
-        self.token = None
-        return True
+        self.last_name  = None
+        self.token      = None
 
-    def _request(self, *path, use_api_schema=True):
+    def _request(self, *path, **kargs):
+        r = self._raw_request(*path, **kargs).json()
+
+        if 'auth token expired' in r.get('error', ''):
+            self.login()
+            return _request(*path, **kargs)
+
+        return r
+
+    def _raw_request(self, *path, **kargs):
         if not self.logged_in:
             raise NotLoggedInError()
 
-        url = self.rest_api_url + '/' + ('students' + '/' + self.id) if use_api_schema else ''
-        for x in path:
-            url += '/' + quote_plus(x)
+        url = self.base_url + '/' + 'students' + '/' + self.id
+        for i in path:
+            url += '/' + quote_plus(str(i)) if i else ''
 
-        r = requests.get(
+        method_to_func = {
+            'GET' : self.session.get,
+            'POST': self.session.post
+        }
+
+        return method_to_func[kargs.get('method', "GET")](
             url=url,
             headers={
-                "User-Agent": "zorro/1.0",
-                "Z-Dev-Apikey": "+zorro+",
                 "Z-Auth-Token": self.token,
-                "Content-Type": "application/json",
-            },
-        )
+            })
 
-        try:
-            r = r.json()
-            if r.get('error'):
-                if 'auth token expired' in r['error']:
-                    self.login()
-
-            r = requests.get(
-                url=url,
-                headers={
-                    "User-Agent": "zorro/1.0",
-                    "Z-Dev-Apikey": "+zorro+",
-                    "Z-Auth-Token": self.token,
-                    "Content-Type": "application/json",
-                },
-            )
-            try:
-                return r.json()
-            except JSONDecodeError:
-                return r.text
-
-        except JSONDecodeError:
-            return r.text
-
-    def absences(self, begin=utils.convert_dt(datetime.now()), end=utils.convert_dt(datetime.now())):
+    def absences(self, begin=None, end=None):
         """
         Get the student's absences
         :param begin: datetime object of start date (optional)
@@ -153,13 +142,11 @@ class Session:
         :return: student's absences
         :rtype: dict
         """
-        if begin == end:
-            return self._request('absences', 'details')
-
-        return self._request('absences',
-                             'details',
-                             self.utils.convert_dt(begin),
-                             self.utils.convert_dt(end))
+        return self._request(
+            'absences',
+            'details',
+            self._convert_dt(begin) if begin else None,
+            self._convert_dt(end)   if end   else None)
 
     def agenda(self, begin, end, event_filter='all'):
         """
@@ -173,10 +160,17 @@ class Session:
         :return: student's absences
         :rtype: dict
         """
-        return self._request('agenda',
-                             ('all' if event_filter == 'all' else ('AGHW' if event_filter == 'homeworks' else 'AGNT')),
-                             self.utils.convert_dt(begin),
-                             self.utils.convert_dt(end))
+        repr = {
+            'all'     : 'all',
+            'homework': 'AGHW',
+            'other'   : 'AGNT'
+        }
+
+        return self._request(
+            'agenda',
+            repr[event_filter],
+            self._convert_dt(begin),
+            self._convert_dt(end))
 
     def didactics(self):
         """
@@ -186,13 +180,53 @@ class Session:
         """
         return self._request('didactics')
 
-    def _download_file(self, content_id):
-        # TODO: File download
-        pass
+    def download_didactics_item(self, item):
+        if item['objectType'] == 'file':
+            return self._raw_request('didactics', 'item', item['contentId']).content
+        elif item['objectType'] == 'link':
+            return self._request('didactics', 'item', item['contentId'])['item']['link']
 
-    def _noticeboard(self):
-        # TODO: Noticeboard
-        pass
+    def documents(self):
+        """
+        Get the student's documents
+        :return student's documents
+        :rtype: dict
+        """
+        return self._request('documents', method='POST')
+
+    def download_document(self, document):
+        """
+        Download document
+        :return: document
+        :rtype: bytes
+        """
+        if self._request('documents', 'check', document['hash'])['document']['available']:
+            return self._raw_request('documents', 'read', document['hash']).content
+
+    def noticeboard(self):
+        """
+        Get the student's noticeboard
+        :return: student's noticeboard
+        :rtype: dict
+        """
+        return self._request('noticeboard')
+
+    def download_notice(self, notice):
+        """
+        Download notice's attachment
+        :return: attachment
+        :rtype: bytes
+        """
+        if not len(notice['attachments']):
+            raise NoAttachmentError()
+
+        self._request('noticeboard', 'read', notice['evtCode'], notice['pubId'], '101')
+        return self._raw_request(
+            'noticeboard',
+            'attach',
+            notice['evtCode'],
+            notice['pubId'],
+            '101').content
 
     def schoolbooks(self):
         """
@@ -231,7 +265,7 @@ class Session:
 
         return self._request('grades', 'subject', subject)
 
-    def lessons(self, day='today', begin=None, end=None):
+    def lessons(self, today=False, begin=None, end=None):
         """
         Get the student's lessons
         :param day: query lessons for a specific day (optional, default "today")
@@ -243,13 +277,13 @@ class Session:
         :return: student's lessons
         :rtype: dict
         """
-        if begin and end:
-            return self._request('lessons',
-                                 self.utils.convert_dt(begin),
-                                 self.utils.convert_dt(end))
+        if today:
+            return self._request('lessons', 'today')
 
-        return self._request('lessons',
-                             self.utils.convert_dt(day) if day != 'today' else 'today')
+        return self._request(
+            'lessons',
+            self.utils.convert_dt(begin),
+            self.utils.convert_dt(end))
 
     def notes(self):
         """
