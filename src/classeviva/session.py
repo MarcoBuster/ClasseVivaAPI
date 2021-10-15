@@ -29,7 +29,7 @@ from datetime     import datetime
 from json.decoder import JSONDecodeError
 from urllib.parse import quote_plus
 
-from .errors import AuthenticationFailedError, NotLoggedInError, NoAttachmentError
+from .errors import AuthenticationFailedError, NotLoggedInError, NoAttachmentsError
 
 
 class Session:
@@ -218,7 +218,7 @@ class Session:
         :rtype: bytes
         """
         if not len(notice['attachments']):
-            raise NoAttachmentError()
+            raise NoAttachmentsError()
 
         self._request('noticeboard', 'read', notice['evtCode'], notice['pubId'], '101')
         return self._raw_request(
