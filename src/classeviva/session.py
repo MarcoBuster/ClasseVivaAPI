@@ -29,7 +29,7 @@ from datetime     import datetime
 from json.decoder import JSONDecodeError
 from urllib.parse import quote_plus
 
-from .errors import AuthenticationFailedError, NotLoggedInError, NoAttachmentError
+from .errors import AuthenticationFailedError, NotLoggedInError, NoAttachmentsError
 
 
 class Session:
