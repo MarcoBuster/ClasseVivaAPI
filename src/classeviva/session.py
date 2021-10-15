@@ -218,7 +218,7 @@ class Session:
         :rtype: bytes
         """
         if not len(notice['attachments']):
-            raise NoAttachmentError()
+            raise NoAttachmentsError()
 
         self._request('noticeboard', 'read', notice['evtCode'], notice['pubId'], '101')
         return self._raw_request(
